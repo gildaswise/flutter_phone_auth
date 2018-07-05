@@ -91,15 +91,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // Styling
 
-  final decorationStyle = TextStyle(
-    color: Colors.grey[50],
-    fontSize: 16.0,
-    fontFamily: 'Overlock',
-  );
-  final hintStyle = TextStyle(
-    color: Colors.white24,
-    fontFamily: 'Overlock',
-  );
+  final decorationStyle = TextStyle(color: Colors.grey[50], fontSize: 16.0);
+  final hintStyle = TextStyle(color: Colors.white24);
 
   //
 
@@ -276,11 +269,11 @@ class _AuthScreenState extends State<AuthScreen> {
       maskedTextFieldController: phoneNumberController,
       maxLength: 15,
       onSubmitted: (text) => _updateRefreshing(true),
-      style: Theme.of(context).textTheme.subhead.copyWith(
-            fontSize: 18.0,
-            color: Colors.white,
-            fontFamily: 'Overlock',
-          ),
+      style: Theme
+          .of(context)
+          .textTheme
+          .subhead
+          .copyWith(fontSize: 18.0, color: Colors.white),
       inputDecoration: InputDecoration(
         isDense: false,
         enabled: this.status == AuthStatus.PHONE_AUTH,
@@ -338,7 +331,6 @@ class _AuthScreenState extends State<AuthScreen> {
       style: Theme.of(context).textTheme.subhead.copyWith(
             fontSize: 32.0,
             color: enabled ? Colors.white : Theme.of(context).buttonColor,
-            fontFamily: 'Overlock',
           ),
       decoration: InputDecoration(
         counterText: "",
