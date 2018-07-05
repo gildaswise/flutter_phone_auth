@@ -1,0 +1,10 @@
+{
+    "workbench.colorCustomizations": {
+        "editorIndentGuide.activeBackground": "#0000ff"
+    },
+    "window.zoomLevel": 1,
+    "editor.fontSize": 13,
+    "editor.fontLigatures": true,
+    "editor.formatOnSave": true,
+    "python.linting.pylintEnabled": false,
+}

@@ -1,0 +1,24 @@
+name: phone_auth
+description: A phone authentication tutorial.
+
+version: 1.0.0+1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^0.1.2
+  google_sign_in: "^3.0.4"
+  firebase_auth:
+    git:
+      url: git://github.com/flutter/plugins.git
+      path: packages/firebase_auth
+      ref: 075897e
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/glogo.png
