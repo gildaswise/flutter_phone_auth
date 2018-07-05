@@ -32,7 +32,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // Variables
   String _errorMessage;
-  String verificationId;
+  String _verificationId;
   Timer _codeTimer;
 
   bool _isRefreshing = false;
@@ -54,13 +54,16 @@ class _AuthScreenState extends State<AuthScreen> {
   // PhoneVerificationFailed
   verificationFailed(AuthException authException) {
     _updateRefreshing(false);
+    _scaffoldKey.currentState.showSnackBar(SnackBar(
+        content:
+            Text("We couldn't verify your code for now, please try again!")));
     Logger.log(TAG,
         message:
             'onVerificationFailed, code: ${authException.code}, message: ${authException.message}');
   }
 
   // PhoneCodeSent
-  codeSent(String verificationId, [int forceResendingToken]) async {
+  codeSent(String _verificationId, [int forceResendingToken]) async {
     Logger.log(TAG,
         message:
             "Verification code sent to number ${phoneNumberController.text}");
@@ -71,17 +74,17 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     _updateRefreshing(false);
     setState(() {
-      this.verificationId = verificationId;
+      this._verificationId = _verificationId;
       this.status = AuthStatus.SMS_AUTH;
       Logger.log(TAG, message: "Changed status to $status");
     });
   }
 
   // PhoneCodeAutoRetrievalTimeout
-  codeAutoRetrievalTimeout(String verificationId) {
+  codeAutoRetrievalTimeout(String _verificationId) {
     Logger.log(TAG, message: "onCodeTimeout");
     setState(() {
-      this.verificationId = verificationId;
+      this._verificationId = _verificationId;
       this._codeTimedOut = true;
     });
   }
@@ -190,7 +193,7 @@ class _AuthScreenState extends State<AuthScreen> {
       });
       Logger.log(TAG, message: "signInWithPhoneNumber called");
       final user = await _auth.signInWithPhoneNumber(
-          verificationId: verificationId, smsCode: smsCodeController.text);
+          verificationId: _verificationId, smsCode: smsCodeController.text);
       if (user != null) await _finishSignIn(user);
       return null;
     }
