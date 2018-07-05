@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:phone_auth/general_utils.dart';
-import 'package:phone_auth/google_sign_in_btn.dart';
-import 'package:phone_auth/main_screen.dart';
-import 'package:phone_auth/masked_text.dart';
-import 'package:phone_auth/reactive_refresh_indicator.dart';
+import 'package:phone_auth/logger.dart';
+import 'package:phone_auth/widgets/google_sign_in_btn.dart';
+import 'package:phone_auth/routes/main_screen.dart';
+import 'package:phone_auth/widgets/masked_text.dart';
+import 'package:phone_auth/widgets/reactive_refresh_indicator.dart';
 
 enum AuthStatus { SOCIAL_AUTH, PHONE_AUTH, SMS_AUTH, PROFILE_AUTH }
 
@@ -48,14 +48,14 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // PhoneVerificationCompleted
   verificationCompleted(FirebaseUser user) async {
-    Utils.log(TAG, message: "onVerificationCompleted, user: $user");
+    Logger.log(TAG, message: "onVerificationCompleted, user: $user");
     final result = await _onCodeVerified(user);
     if (result) {
       await _finishSignIn(user);
     } else {
       setState(() {
         this.status = AuthStatus.SMS_AUTH;
-        Utils.log(TAG, message: "Changed status to $status");
+        Logger.log(TAG, message: "Changed status to $status");
       });
     }
   }
@@ -63,14 +63,14 @@ class _AuthScreenState extends State<AuthScreen> {
   // PhoneVerificationFailed
   verificationFailed(AuthException authException) {
     _updateRefreshing(false);
-    Utils.log(TAG,
+    Logger.log(TAG,
         message:
             'onVerificationFailed, code: ${authException.code}, message: ${authException.message}');
   }
 
   // PhoneCodeSent
   codeSent(String verificationId, [int forceResendingToken]) async {
-    Utils.log(TAG,
+    Logger.log(TAG,
         message:
             "Verification code sent to number ${phoneNumberController.text}");
     _codeTimer = Timer(_timeOut, () {
@@ -82,13 +82,13 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() {
       this.verificationId = verificationId;
       this.status = AuthStatus.SMS_AUTH;
-      Utils.log(TAG, message: "Changed status to $status");
+      Logger.log(TAG, message: "Changed status to $status");
     });
   }
 
   // PhoneCodeAutoRetrievalTimeout
   codeAutoRetrievalTimeout(String verificationId) {
-    Utils.log(TAG, message: "onCodeTimeout");
+    Logger.log(TAG, message: "onCodeTimeout");
     setState(() {
       this.verificationId = verificationId;
       this._codeTimedOut = true;
@@ -118,7 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // async
 
   Future<Null> _updateRefreshing(bool isRefreshing) async {
-    Utils.log(TAG,
+    Logger.log(TAG,
         message: "Setting _isRefreshing ($_isRefreshing) to $isRefreshing");
     if (_isRefreshing) {
       setState(() {
@@ -132,7 +132,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<Null> _signIn() async {
     GoogleSignInAccount user = _googleSignIn.currentUser;
-    Utils.log(TAG, message: "Just got user as: $user");
+    Logger.log(TAG, message: "Just got user as: $user");
 
     if (user == null) {
       user = await _googleSignIn.signIn();
@@ -143,7 +143,7 @@ class _AuthScreenState extends State<AuthScreen> {
       this._googleUser = user;
       setState(() {
         this.status = AuthStatus.PHONE_AUTH;
-        Utils.log(TAG, message: "Changed status to $status");
+        Logger.log(TAG, message: "Changed status to $status");
       });
       return null;
     }
@@ -162,7 +162,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _errorMessage = null;
       });
       final result = await _verifyPhoneNumber();
-      Utils.log(TAG, message: "Returning $result from _submitPhoneNumber");
+      Logger.log(TAG, message: "Returning $result from _submitPhoneNumber");
       return result;
     }
   }
@@ -174,7 +174,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<Null> _verifyPhoneNumber() async {
-    Utils.log(TAG, message: "Got phone number as: ${this.phoneNumber}");
+    Logger.log(TAG, message: "Got phone number as: ${this.phoneNumber}");
     await _auth.verifyPhoneNumber(
         phoneNumber: this.phoneNumber,
         timeout: _timeOut,
@@ -182,7 +182,7 @@ class _AuthScreenState extends State<AuthScreen> {
         codeAutoRetrievalTimeout: codeAutoRetrievalTimeout,
         verificationCompleted: verificationCompleted,
         verificationFailed: verificationFailed);
-    Utils.log(TAG, message: "Returning null from _verifyPhoneNumber");
+    Logger.log(TAG, message: "Returning null from _verifyPhoneNumber");
     return null;
   }
 
@@ -197,11 +197,11 @@ class _AuthScreenState extends State<AuthScreen> {
       setState(() {
         _errorMessage = null;
       });
-      Utils.log(TAG, message: "signInWithPhoneNumber called");
+      Logger.log(TAG, message: "signInWithPhoneNumber called");
       final user = await _auth.signInWithPhoneNumber(
           verificationId: verificationId, smsCode: smsCodeController.text);
       final result = await _onCodeVerified(user);
-      Utils.log(TAG, message: "Returning $result from _onCodeVerified");
+      Logger.log(TAG, message: "Returning $result from _onCodeVerified");
       return null;
     }
   }
@@ -210,7 +210,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (user != null) {
       setState(() {
         this.status = AuthStatus.PROFILE_AUTH;
-        Utils.log(TAG, message: "Changed status to $status");
+        Logger.log(TAG, message: "Changed status to $status");
       });
       // Here, instead of _finishSignIn, you should do whatever you want
       // as the user is already verified with Firebase from both

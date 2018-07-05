@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:phone_auth/auth.dart';
+import 'package:phone_auth/routes/auth.dart';
 
 void main() => runApp(MyApp());
 
