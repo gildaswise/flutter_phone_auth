@@ -29,7 +29,7 @@ class MainScreen extends StatelessWidget {
               ),
               Text(googleUser.displayName, style: theme.textTheme.title),
               Text(googleUser.email),
-              Text("+5586999999999", style: theme.textTheme.subhead),
+              Text(firebaseUser.phoneNumber, style: theme.textTheme.subhead),
             ],
           ),
         ),
