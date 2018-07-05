@@ -22,8 +22,6 @@ class _AuthScreenState extends State<AuthScreen> {
   AuthStatus status = AuthStatus.SOCIAL_AUTH;
 
   // Keys
-  final GlobalKey<ReactiveRefreshIndicatorState> _refreshIndicatorKey =
-      GlobalKey<ReactiveRefreshIndicatorState>();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<MaskedTextFieldState> _maskedPhoneKey =
       GlobalKey<MaskedTextFieldState>();
@@ -37,27 +35,20 @@ class _AuthScreenState extends State<AuthScreen> {
   String verificationId;
   Timer _codeTimer;
 
-  bool _codeTimedOut = false;
   bool _isRefreshing = false;
+  bool _codeTimedOut = false;
   Duration _timeOut = const Duration(minutes: 1);
 
   // Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+
   GoogleSignInAccount _googleUser;
 
   // PhoneVerificationCompleted
   verificationCompleted(FirebaseUser user) async {
     Logger.log(TAG, message: "onVerificationCompleted, user: $user");
-    final result = await _onCodeVerified(user);
-    if (result) {
-      await _finishSignIn(user);
-    } else {
-      setState(() {
-        this.status = AuthStatus.SMS_AUTH;
-        Logger.log(TAG, message: "Changed status to $status");
-      });
-    }
+    if (user != null) await _finishSignIn(user);
   }
 
   // PhoneVerificationFailed
@@ -200,43 +191,49 @@ class _AuthScreenState extends State<AuthScreen> {
       Logger.log(TAG, message: "signInWithPhoneNumber called");
       final user = await _auth.signInWithPhoneNumber(
           verificationId: verificationId, smsCode: smsCodeController.text);
-      final result = await _onCodeVerified(user);
-      Logger.log(TAG, message: "Returning $result from _onCodeVerified");
+      if (user != null) await _finishSignIn(user);
       return null;
     }
   }
 
   Future<bool> _onCodeVerified(FirebaseUser user) async {
-    if (user != null) {
+    final isUserValid = (user != null);
+    if (isUserValid) {
       setState(() {
+        // Here we change the status once more to guarantee that the SMS's
+        // text input isn't available while you do any other request
+        // with the gathered data
         this.status = AuthStatus.PROFILE_AUTH;
         Logger.log(TAG, message: "Changed status to $status");
       });
-      // Here, instead of _finishSignIn, you should do whatever you want
-      // as the user is already verified with Firebase from both
-      // Google and phone number methods
-      // Example: authenticate with your API, use the data gathered
-      // to post your profile/user, etc.
-      await _finishSignIn(user);
-      return true;
-    } else {
-      _scaffoldKey.currentState.showSnackBar(
-        SnackBar(
-          content: Text(
-              "We couldn't create your profile for now, please try again with the button below!"),
-        ),
-      );
     }
-    return false;
+    return isUserValid;
   }
 
   _finishSignIn(FirebaseUser user) async {
-    Navigator.of(context).pushReplacement(CupertinoPageRoute(
-          builder: (context) => MainScreen(
-                googleUser: _googleUser,
-                firebaseUser: user,
-              ),
-        ));
+    await _onCodeVerified(user).then((result) {
+      if (result) {
+        // Here, instead of navigating to another screen, you should do whatever you want
+        // as the user is already verified with Firebase from both
+        // Google and phone number methods
+        // Example: authenticate with your own API, use the data gathered
+        // to post your profile/user, etc.
+
+        Navigator.of(context).pushReplacement(CupertinoPageRoute(
+              builder: (context) => MainScreen(
+                    googleUser: _googleUser,
+                    firebaseUser: user,
+                  ),
+            ));
+      } else {
+        _scaffoldKey.currentState.showSnackBar(
+          SnackBar(
+            content: Text(
+                "We couldn't create your profile for now, please try again later"),
+          ),
+        );
+      }
+    });
   }
 
   // Widgets
@@ -476,7 +473,6 @@ class _AuthScreenState extends State<AuthScreen> {
       backgroundColor: Theme.of(context).primaryColor,
       body: Container(
         child: ReactiveRefreshIndicator(
-          key: _refreshIndicatorKey,
           onRefresh: _onRefresh,
           isRefreshing: _isRefreshing,
           child: Container(child: _buildBody()),
