@@ -430,7 +430,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Widget _buildBody() {
     Widget body;
-    switch (status) {
+    switch (this.status) {
       case AuthStatus.SOCIAL_AUTH:
         body = _buildSocialLoginBody();
         break;
