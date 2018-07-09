@@ -1,8 +1,3 @@
 # phone_auth
 
-A new Flutter project.
-
-## Getting Started
-
-For help getting started with Flutter, view our online
-[documentation](https://flutter.io/).
+This is the repo used for my tutorial on adding sign in with Google and phone authentication via Firebase published on both [Medium](https://medium.com/@gildaswise/flutter-adding-sign-in-with-google-and-phone-authentication-to-your-app-69f681518f9b) and [dev.to](https://dev.to/gildaswise/flutter-adding-sign-in-with-google-and-phone-authentication-to-yourapp-54mj), please refer to these links on what to do with this!
