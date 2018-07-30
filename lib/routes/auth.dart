@@ -37,6 +37,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _isRefreshing = false;
   bool _codeTimedOut = false;
+  bool _codeVerified = false;
   Duration _timeOut = const Duration(minutes: 1);
 
   // Firebase
@@ -48,22 +49,27 @@ class _AuthScreenState extends State<AuthScreen> {
   // PhoneVerificationCompleted
   verificationCompleted(FirebaseUser user) async {
     Logger.log(TAG, message: "onVerificationCompleted, user: $user");
-    if (user != null) await _finishSignIn(user);
+    if (await _onCodeVerified(user)) {
+      await _finishSignIn(user);
+    } else {
+      setState(() {
+        this.status = AuthStatus.SMS_AUTH;
+        Logger.log(TAG, message: "Changed status to $status");
+      });
+    }
   }
 
   // PhoneVerificationFailed
   verificationFailed(AuthException authException) {
-    _updateRefreshing(false);
-    _scaffoldKey.currentState.showSnackBar(SnackBar(
-        content:
-            Text("We couldn't verify your code for now, please try again!")));
+    _showErrorSnackbar(
+        "We couldn't verify your code for now, please try again!");
     Logger.log(TAG,
         message:
             'onVerificationFailed, code: ${authException.code}, message: ${authException.message}');
   }
 
   // PhoneCodeSent
-  codeSent(String _verificationId, [int forceResendingToken]) async {
+  codeSent(String verificationId, [int forceResendingToken]) async {
     Logger.log(TAG,
         message:
             "Verification code sent to number ${phoneNumberController.text}");
@@ -74,17 +80,18 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     _updateRefreshing(false);
     setState(() {
-      this._verificationId = _verificationId;
+      this._verificationId = verificationId;
       this.status = AuthStatus.SMS_AUTH;
       Logger.log(TAG, message: "Changed status to $status");
     });
   }
 
   // PhoneCodeAutoRetrievalTimeout
-  codeAutoRetrievalTimeout(String _verificationId) {
+  codeAutoRetrievalTimeout(String verificationId) {
     Logger.log(TAG, message: "onCodeTimeout");
+    _updateRefreshing(false);
     setState(() {
-      this._verificationId = _verificationId;
+      this._verificationId = verificationId;
       this._codeTimedOut = true;
     });
   }
@@ -117,12 +124,24 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
+  _showErrorSnackbar(String message) {
+    _updateRefreshing(false);
+    _scaffoldKey.currentState.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<Null> _signIn() async {
     GoogleSignInAccount user = _googleSignIn.currentUser;
     Logger.log(TAG, message: "Just got user as: $user");
 
     if (user == null) {
-      user = await _googleSignIn.signIn();
+      await _googleSignIn.signIn().then((account) {
+        user = account;
+      }, onError: (error) {
+        _showErrorSnackbar(
+            "Couldn't log in with your Google account, please try again!");
+      });
     }
 
     if (user != null) {
@@ -140,11 +159,13 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<Null> _submitPhoneNumber() async {
     final error = _phoneInputValidator();
     if (error != null) {
+      _updateRefreshing(false);
       setState(() {
         _errorMessage = error;
       });
       return null;
     } else {
+      _updateRefreshing(false);
       setState(() {
         _errorMessage = null;
       });
@@ -176,24 +197,47 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<Null> _submitSmsCode() async {
     final error = _smsInputValidator();
     if (error != null) {
-      setState(() {
-        _errorMessage = error;
-      });
+      _updateRefreshing(false);
+      _showErrorSnackbar(error);
       return null;
     } else {
-      setState(() {
-        _errorMessage = null;
-      });
-      Logger.log(TAG, message: "signInWithPhoneNumber called");
-      final user = await _auth.signInWithPhoneNumber(
-          verificationId: _verificationId, smsCode: smsCodeController.text);
-      if (user != null) await _finishSignIn(user);
+      if (this._codeVerified) {
+        await _finishSignIn(await _auth.currentUser());
+      } else {
+        Logger.log(TAG, message: "_signInWithPhoneNumber called");
+        await _signInWithPhoneNumber();
+      }
       return null;
     }
   }
 
+  Future<void> _signInWithPhoneNumber() async {
+    final errorMessage = "We couldn't verify your code, please try again!";
+    await _auth
+        .signInWithPhoneNumber(
+            verificationId: _verificationId, smsCode: smsCodeController.text)
+        .then((user) async {
+      await _onCodeVerified(user).then((codeVerified) async {
+        this._codeVerified = codeVerified;
+        Logger.log(
+          TAG,
+          message: "Returning ${this._codeVerified} from _onCodeVerified",
+        );
+        if (this._codeVerified) {
+          await _finishSignIn(user);
+        } else {
+          _showErrorSnackbar(errorMessage);
+        }
+      });
+    }, onError: (error) {
+      print("Failed to verify SMS code: $error");
+      _showErrorSnackbar(errorMessage);
+    });
+  }
+
   Future<bool> _onCodeVerified(FirebaseUser user) async {
-    final isUserValid = (user != null);
+    final isUserValid = (user != null &&
+        (user.phoneNumber != null && user.phoneNumber.isNotEmpty));
     if (isUserValid) {
       setState(() {
         // Here we change the status once more to guarantee that the SMS's
@@ -202,6 +246,8 @@ class _AuthScreenState extends State<AuthScreen> {
         this.status = AuthStatus.PROFILE_AUTH;
         Logger.log(TAG, message: "Changed status to $status");
       });
+    } else {
+      _showErrorSnackbar("We couldn't verify your code, please try again!");
     }
     return isUserValid;
   }
@@ -222,12 +268,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
             ));
       } else {
-        _scaffoldKey.currentState.showSnackBar(
-          SnackBar(
-            content: Text(
-                "We couldn't create your profile for now, please try again later"),
-          ),
-        );
+        setState(() {
+          this.status = AuthStatus.SMS_AUTH;
+        });
+        _showErrorSnackbar(
+            "We couldn't create your profile for now, please try again later");
       }
     });
   }
@@ -335,7 +380,6 @@ class _AuthScreenState extends State<AuthScreen> {
       decoration: InputDecoration(
         counterText: "",
         enabled: enabled,
-        errorText: _errorMessage,
         hintText: "--- ---",
         hintStyle: hintStyle.copyWith(fontSize: 42.0),
       ),
@@ -348,13 +392,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (_codeTimedOut) {
           await _verifyPhoneNumber();
         } else {
-          _scaffoldKey.currentState.showSnackBar(
-            SnackBar(
-              content: Text(
-                "You can't retry yet!",
-              ),
-            ),
-          );
+          _showErrorSnackbar("You can't retry yet!");
         }
       },
       child: Padding(
@@ -464,6 +502,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(elevation: 0.0),
       backgroundColor: Theme.of(context).primaryColor,
       body: Container(

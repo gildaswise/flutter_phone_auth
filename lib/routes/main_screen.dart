@@ -16,22 +16,21 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      body: Container(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Offstage(
-                offstage: googleUser.photoUrl == null,
-                child: CircleAvatar(
-                    backgroundImage: NetworkImage(googleUser.photoUrl)),
-              ),
-              Text(googleUser.displayName, style: theme.textTheme.title),
-              Text(googleUser.email),
-              Text(firebaseUser.phoneNumber, style: theme.textTheme.subhead),
-            ],
-          ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Offstage(
+              offstage: googleUser.photoUrl == null,
+              child: CircleAvatar(
+                  backgroundImage: NetworkImage(googleUser.photoUrl)),
+            ),
+            SizedBox(height: 8.0),
+            Text(googleUser.displayName, style: theme.textTheme.title),
+            Text(googleUser.email),
+            Text(firebaseUser.phoneNumber, style: theme.textTheme.subhead),
+          ],
         ),
       ),
     );
