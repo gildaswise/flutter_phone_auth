@@ -357,7 +357,7 @@ class ReactiveRefreshIndicatorState extends State<ReactiveRefreshIndicator>
     _positionController
         .animateTo(1.0 / _kDragSizeFactorLimit,
             duration: _kIndicatorSnapDuration)
-        .then<void>((Null value) {
+        .then((value) {
       if (mounted && _mode == _RefreshIndicatorMode.snap) {
         assert(widget.onRefresh != null);
         setState(() => _mode = _RefreshIndicatorMode.refresh);
