@@ -31,6 +31,7 @@ class _AuthScreenState extends State<AuthScreen> {
   TextEditingController phoneNumberController = TextEditingController();
 
   // Variables
+  String _phoneNumber;
   String _errorMessage;
   String _verificationId;
   Timer _codeTimer;
@@ -135,13 +136,24 @@ class _AuthScreenState extends State<AuthScreen> {
     GoogleSignInAccount user = _googleSignIn.currentUser;
     Logger.log(TAG, message: "Just got user as: $user");
 
+    final onError = (exception, stacktrace) {
+      Logger.log(TAG, message: "Error from _signIn: $exception");
+      _showErrorSnackbar(
+          "Couldn't log in with your Google account, please try again!");
+      user = null;
+    };
+
     if (user == null) {
-      await _googleSignIn.signIn().then((account) {
-        user = account;
-      }, onError: (error) {
-        _showErrorSnackbar(
-            "Couldn't log in with your Google account, please try again!");
-      });
+      user = await _googleSignIn.signIn().catchError(onError);
+      Logger.log(TAG, message: "Received $user");
+      final GoogleSignInAuthentication googleAuth = await user.authentication;
+      Logger.log(TAG, message: "Added googleAuth: $googleAuth");
+      await _auth
+          .signInWithCredential(GoogleAuthProvider.getCredential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          ))
+          .catchError(onError);
     }
 
     if (user != null) {
@@ -176,9 +188,14 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   String get phoneNumber {
-    String unmaskedText = _maskedPhoneKey.currentState.unmaskedText;
-    String formatted = "+55$unmaskedText".trim();
-    return formatted;
+    try {
+      String unmaskedText = _maskedPhoneKey.currentState?.unmaskedText;
+      if (unmaskedText != null) _phoneNumber = "+55$unmaskedText".trim();
+    } catch (error) {
+      Logger.log(TAG,
+          message: "Couldn't access state from _maskedPhoneKey: $error");
+    }
+    return _phoneNumber;
   }
 
   Future<Null> _verifyPhoneNumber() async {
@@ -213,9 +230,14 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _signInWithPhoneNumber() async {
     final errorMessage = "We couldn't verify your code, please try again!";
+
     await _auth
-        .signInWithPhoneNumber(
-            verificationId: _verificationId, smsCode: smsCodeController.text)
+        .linkWithCredential(
+      PhoneAuthProvider.getCredential(
+        verificationId: _verificationId,
+        smsCode: smsCodeController.text,
+      ),
+    )
         .then((user) async {
       await _onCodeVerified(user).then((codeVerified) async {
         this._codeVerified = codeVerified;
@@ -262,11 +284,11 @@ class _AuthScreenState extends State<AuthScreen> {
         // to post your profile/user, etc.
 
         Navigator.of(context).pushReplacement(CupertinoPageRoute(
-              builder: (context) => MainScreen(
-                    googleUser: _googleUser,
-                    firebaseUser: user,
-                  ),
-            ));
+          builder: (context) => MainScreen(
+                googleUser: _googleUser,
+                firebaseUser: user,
+              ),
+        ));
       } else {
         setState(() {
           this.status = AuthStatus.SMS_AUTH;
@@ -314,8 +336,7 @@ class _AuthScreenState extends State<AuthScreen> {
       maskedTextFieldController: phoneNumberController,
       maxLength: 15,
       onSubmitted: (text) => _updateRefreshing(true),
-      style: Theme
-          .of(context)
+      style: Theme.of(context)
           .textTheme
           .subhead
           .copyWith(fontSize: 18.0, color: Colors.white),
