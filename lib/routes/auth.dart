@@ -46,19 +46,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   GoogleSignInAccount _googleUser;
-
-  // PhoneVerificationCompleted
-  verificationCompleted(FirebaseUser user) async {
-    Logger.log(TAG, message: "onVerificationCompleted, user: $user");
-    if (await _onCodeVerified(user)) {
-      await _finishSignIn(user);
-    } else {
-      setState(() {
-        this.status = AuthStatus.SMS_AUTH;
-        Logger.log(TAG, message: "Changed status to $status");
-      });
-    }
-  }
+  FirebaseUser _firebaseUser;
 
   // PhoneVerificationFailed
   verificationFailed(AuthException authException) {
@@ -148,7 +136,7 @@ class _AuthScreenState extends State<AuthScreen> {
       Logger.log(TAG, message: "Received $user");
       final GoogleSignInAuthentication googleAuth = await user.authentication;
       Logger.log(TAG, message: "Added googleAuth: $googleAuth");
-      await _auth
+      _firebaseUser = await _auth
           .signInWithCredential(GoogleAuthProvider.getCredential(
             accessToken: googleAuth.accessToken,
             idToken: googleAuth.idToken,
@@ -158,7 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (user != null) {
       _updateRefreshing(false);
-      this._googleUser = user;
+      _googleUser = user;
       setState(() {
         this.status = AuthStatus.PHONE_AUTH;
         Logger.log(TAG, message: "Changed status to $status");
@@ -205,7 +193,7 @@ class _AuthScreenState extends State<AuthScreen> {
         timeout: _timeOut,
         codeSent: codeSent,
         codeAutoRetrievalTimeout: codeAutoRetrievalTimeout,
-        verificationCompleted: verificationCompleted,
+        verificationCompleted: _linkWithPhoneNumber,
         verificationFailed: verificationFailed);
     Logger.log(TAG, message: "Returning null from _verifyPhoneNumber");
     return null;
@@ -221,39 +209,38 @@ class _AuthScreenState extends State<AuthScreen> {
       if (this._codeVerified) {
         await _finishSignIn(await _auth.currentUser());
       } else {
-        Logger.log(TAG, message: "_signInWithPhoneNumber called");
-        await _signInWithPhoneNumber();
+        Logger.log(TAG, message: "_linkWithPhoneNumber called");
+        await _linkWithPhoneNumber(
+          PhoneAuthProvider.getCredential(
+            smsCode: smsCodeController.text,
+            verificationId: _verificationId,
+          ),
+        );
       }
       return null;
     }
   }
 
-  Future<void> _signInWithPhoneNumber() async {
+  Future<void> _linkWithPhoneNumber(AuthCredential credential) async {
     final errorMessage = "We couldn't verify your code, please try again!";
 
-    await _auth
-        .linkWithCredential(
-      PhoneAuthProvider.getCredential(
-        verificationId: _verificationId,
-        smsCode: smsCodeController.text,
-      ),
-    )
-        .then((user) async {
-      await _onCodeVerified(user).then((codeVerified) async {
-        this._codeVerified = codeVerified;
-        Logger.log(
-          TAG,
-          message: "Returning ${this._codeVerified} from _onCodeVerified",
-        );
-        if (this._codeVerified) {
-          await _finishSignIn(user);
-        } else {
-          _showErrorSnackbar(errorMessage);
-        }
-      });
-    }, onError: (error) {
+    _firebaseUser =
+        await _firebaseUser.linkWithCredential(credential).catchError((error) {
       print("Failed to verify SMS code: $error");
       _showErrorSnackbar(errorMessage);
+    });
+
+    await _onCodeVerified(_firebaseUser).then((codeVerified) async {
+      this._codeVerified = codeVerified;
+      Logger.log(
+        TAG,
+        message: "Returning ${this._codeVerified} from _onCodeVerified",
+      );
+      if (this._codeVerified) {
+        await _finishSignIn(_firebaseUser);
+      } else {
+        _showErrorSnackbar(errorMessage);
+      }
     });
   }
 

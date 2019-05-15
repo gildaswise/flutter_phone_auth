@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:phone_auth/routes/auth.dart';
 
 class MainScreen extends StatelessWidget {
   final GoogleSignInAccount googleUser;
@@ -22,14 +24,26 @@ class MainScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             Offstage(
-              offstage: googleUser.photoUrl == null,
+              offstage: firebaseUser.photoUrl == null,
               child: CircleAvatar(
-                  backgroundImage: NetworkImage(googleUser.photoUrl)),
+                  backgroundImage: NetworkImage(firebaseUser.photoUrl)),
             ),
             SizedBox(height: 8.0),
-            Text(googleUser.displayName, style: theme.textTheme.title),
-            Text(googleUser.email),
+            Text(firebaseUser.displayName, style: theme.textTheme.title),
+            Text(firebaseUser.email),
             Text(firebaseUser.phoneNumber, style: theme.textTheme.subhead),
+            SizedBox(height: 16.0),
+            FlatButton(
+              child: Text("Sign out", style: theme.textTheme.button),
+              onPressed: () async {
+                await GoogleSignIn().signOut();
+                await FirebaseAuth.instance.signOut();
+                Navigator.of(context).pushAndRemoveUntil(
+                  CupertinoPageRoute(builder: (context) => AuthScreen()),
+                  (route) => false,
+                );
+              },
+            )
           ],
         ),
       ),
