@@ -136,12 +136,14 @@ class _AuthScreenState extends State<AuthScreen> {
       Logger.log(TAG, message: "Received $user");
       final GoogleSignInAuthentication googleAuth = await user.authentication;
       Logger.log(TAG, message: "Added googleAuth: $googleAuth");
-      _firebaseUser = await _auth
+
+      final result = await _auth
           .signInWithCredential(GoogleAuthProvider.getCredential(
             accessToken: googleAuth.accessToken,
             idToken: googleAuth.idToken,
           ))
           .catchError(onError);
+      _firebaseUser = result.user;
     }
 
     if (user != null) {
@@ -224,11 +226,12 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _linkWithPhoneNumber(AuthCredential credential) async {
     final errorMessage = "We couldn't verify your code, please try again!";
 
-    _firebaseUser =
+    final result =
         await _firebaseUser.linkWithCredential(credential).catchError((error) {
       print("Failed to verify SMS code: $error");
       _showErrorSnackbar(errorMessage);
     });
+    _firebaseUser = result.user;
 
     await _onCodeVerified(_firebaseUser).then((codeVerified) async {
       this._codeVerified = codeVerified;
@@ -272,9 +275,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
         Navigator.of(context).pushReplacement(CupertinoPageRoute(
           builder: (context) => MainScreen(
-                googleUser: _googleUser,
-                firebaseUser: user,
-              ),
+            googleUser: _googleUser,
+            firebaseUser: user,
+          ),
         ));
       } else {
         setState(() {
